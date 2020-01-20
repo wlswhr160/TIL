@@ -1,0 +1,4 @@
+mysql> create database sampleapp character set utf8;
+mysql> use sampleapp
+
+# mysqldump [옵션] 데이터베이스명 > 덤프파일명
