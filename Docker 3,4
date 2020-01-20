@@ -1,0 +1,58 @@
+<container run>
+docker container run -v ${PWD}:/workspace gihyodocker/imagemagick:latest
+docker container run -d -p 8080:8080 -v ${PWD}/jenkins_home:/var/jenkins_home jenkins:latest
+
+<데이터 볼륨에 MySQL 생성>
+-> Dockerfile
+
+FROM busybox
+
+VOLUME /var/lib/mysql
+
+CMD ["bin/true"]
+
+
+docker image build -t example/mysql-data:latest .
+docker container run -d --name mysql-data example/mysql-data:latest
+
+docker container run -d --rm --name mysql\
+-e "MYSQL_ALLOW_EMPTY_PASSWORD=yes"\
+-e "MYSQL_DATABASE=volume_test"\
+-e "MYSQL_USER=example"\
+-e "MYSQL_PASSWORD=example"\
+--volumes-from mysql-data\
+mysql:5.7
+
+docker container exec -it mysql mysql -uroot -p volume_test
+create table user(id int PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
+insert into user (name) values ('test1'), ('test2'), ('test3');
+
+select * from user;
+
+docker container run -v ${PWD}:/tmp\
+--volumes-from mysql-data \
+busybox \
+tar cvzf /tmp/mysql-backup.tar.gz /var/lib/mysql
+
+Docker-compose.yml 작성(github참조)
+docker-compose up -d
+docker contaienr ls
+docker container exec -it manager docker swarm init
+docker container exec -it worker01 docker swarm join ...
+docker exec -it worker02 docker swarm join ...
+docker exec -it worker03 docker swarm join ...
+
+docker image push [push_대상_레지스트리_호스트/] 리포지토리명[:태그명]
+docker image push localhost:5000/example/echo:latest
+docker container exec -it worker01 docker image pull registry:5000/example/echo:latest(worker01에 레지스트리라는 이름 지정)
+docker exec -it manager sh
+docker service ls
+
+<stack>
+stack은 docker stack 하위 명령으로 조작
+스택을 사용해 배포된 서비스 그룹은 overlay network에 속한다.(같은 network로 묶기 위해 overlay 필요하다.)
+
+
+docker exec -it manager sh
+docker node ls
+docker network create --driver=overlay --attachable todoapp
