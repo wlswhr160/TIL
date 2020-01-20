@@ -56,3 +56,28 @@ stack은 docker stack 하위 명령으로 조작
 docker exec -it manager sh
 docker node ls
 docker network create --driver=overlay --attachable todoapp
+
+todo-mysql.yml파일 참조
+docker container exec -it manager sh
+docker stack deploy -c /stack/todo-mysql.yml todo_mysql
+
+docker container exec -it manager sh
+docker sevice ls
+
+docker container exec -it manager docker service ps todo_mysql_master --no-trunc --filter "desired-state=running"
+
+docker container exec -it [node id[ docker container exec -it todo_mysql_master.1.[containerid]
+<이 과정은 조금 복잡하다.
+
+docker container exec -it manager docker service ps todo_mysql_master --no-trunc --filter "desired-state=running" \
+--format "docker container exec -it {{.Node}} docker container exec -it {{.Name}}.{{.ID}} bash"
+
+curl -s -XGET http://localhost:8080/todo?status=TODo | jq .
+curl -XPOST -d '{"title":4장 집필하기", "content": "내용 검토 중"}' http://localhost:8080/todo
+curl -XPUT -d '{"id":1, "title": "4장 집필하기", "content": "도커를 이용한 실전적 웹", "status": "PROGRESS"}' http://localhost:8080/todo
+
+
+docker image build -t ch04/nginx:latest .
+docker image tag ch04/nging:latest localhost:5000/ch04/nginx:latest
+docker image push localhost:5000/ch04/nginx:latest
+
