@@ -1,0 +1,38 @@
+    mongo1:
+        image: "mongo"
+        ports:
+            - "16010:27017"
+        volumes: 
+            - $HOME/mongoRepl/mongo1:/data/db
+        networks: 
+            - mongo-networks
+        command: mongod --replSet myapp
+        
+    mongo2:
+        image: "mongo"
+        ports:
+            - "26010:27017"
+        volumes: 
+            - $HOME/mongoRepl/mongo2:/data/db
+        networks: 
+            - mongo-networks
+        command: mongod --replSet myapp
+        depends_on: 
+            - mongo1
+ 
+    mongo3:
+        image: "mongo"
+        ports:
+            - "36010:27017"
+        volumes: 
+            - $HOME/mongoRepl/mongo3:/data/db
+        networks: 
+            - mongo-networks
+        command: mongod --replSet myapp
+        depends_on: 
+            - mongo2
+ 
+ 
+networks: 
+    mongo-networks:
+        driver: bridge
