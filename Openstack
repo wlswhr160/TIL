@@ -1,0 +1,87 @@
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+...
+#UUID
+IPADDR=" "
+
+systemctl restart network
+
+vi /etc/hosts
+controller,compute1의 host 바꾸기
+
+<packstack-compute1>
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+...
+#UUID
+#IPDDR="10.0.0.201"
+
+systemctl restart network
+
+vi /etc/hosts
+hostname compute1
+hostnamectl set-hostname compute1
+
+<p-controller>
+ym install -y openstack-packstack*
+packstack --gen-answer-file=/root/openstack.txt
+cp /root/openstack.txt /root/openstack.old
+
+vi /root/openstack.txt
+
+ CONFIG_DEFAULT_PASSWORD=abc123
+ CONFIG_CEILOMETER_INSTALL=n
+ CONFIG_AODH_INSTALL=n
+ CONFIG_KEYSTONE_ADMIN_PW=abc123
+ CONFIG_HEAT_INSTALL=y
+ CONFIG_MAGNUM_INSTALL=y
+ CONFIG_TROVE_INSTALL=y
+ CONFIG_NEUTRON_L2_AGENT=openvswitch
+ CONFIG_NEUTRON_OVS_BRIDGE_IFACES=br-ex:ens33
+ CONFIG_COMPUTE_HOSTS=10.0.0.200,10.0.0.201
+ 
+ time packstack --answer-file=/root/openstack.txt
+ 
+ cat /root/openstack.txt|grep DEMO
+ CONFIG_KEYSTONE_DEMO_PW=
+ #CONFIG_PROVISION_DEMO. Name must be one of the included in
+ #CONFIG_PROVISION_DEMO. Name must be one of the included in
+ CONFIG_PROVISION_DEMO=y
+ CONFIG_PROVISION_DEMO_FLOATRANGE=172.24.4.0/24
+ CONFIG_PROVISION_DEMO_ALLOCATION_POOLS=[]
+ openstack.txt 파일에 있는 CONFIG_KEYSTON_DEMO_PW에서 랜덤 PW 확인 후 demo 사용자로 로그인
+ 
+ <설정 파일 수정하기(glance-api.conf)>
+ p.628
+ <p-controller>
+ . keystonerc_admin
+ openstack image list
+
+ll /var/lib/glance/images
+cat openstack.txt | grep SWIFT
+CONFIG_SWIFT_INSTALL=y
+CONFIG_SWIFT_KS_PW= 패스워드 확인
+
+vi /etc/glance/glance-api.conf
+
+2053 stores=file,http,swift
+2107 default_store=swift
+2441 #filesystem_store_datadir = /var/lib/glance/images/
+3213 swift_store_auth_version 3
+3223 swift_store_auth_address = http://10.0.0.200:5000/v3
+3232 swift_store_user = services:swift
+3242 swift_store_key = swift_password
+2991 swift_store_create_container_on_put = True
+2921 swift_store_container = glance
+3470 os_region_name=regionOne
+
+systemctl restart openstack-glance-api
+lsof -i tcp:9292
+
+대시보드에 demo 사용자로 접속
+프로젝트 -> compute -> 이미지
+
+로그아웃
+[controller]# cat openstack.txt | grep SWIFT_KS
+CONFIG_SWIFT_KS_PW=
+
+swift 사용자로 로그인
+프로젝트 -> 오브젝트 스토리지 -> 컨테이너
