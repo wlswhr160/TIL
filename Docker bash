@@ -1,0 +1,12 @@
+mkdir -p [mydir]/stack
+code todo-app.yml
+cd [mydir]
+code docker-compose.yml
+docker-compose up
+docker exec -it manager docker swarm init
+docker exec -it worker01 docker swarm join ...
+docker exec -it worker02 docker swarm join ...
+docker exec -it worker03 docker swarm join ...
+docker exec -it manager docker network create --driver=overlay --attachable frontend
+docker exec -it manager docker network create --driver=overlay --attachable backend
+docker exec -it manager docker stack deploy -c /stack/todo-app.yml my-vote-app
