@@ -1,0 +1,123 @@
+docker pull mongo
+docker run --name mongodb_server -v /home/test/mongodb/db:/data/db -d -p 16010:27017 mongo -auth
+docker run -d --name mongodb-test -p 17017:27017 \
+-v /home/sa/data/mongod.conf:/etc/mongod.conf \
+-v /home/sa/data/db:/data/db mongo --config/etc/mongod.conf
+
+> ** 16010으로 
+> ** 16010으로 접속하면 27017이 반응한다
+> ** auth : 계정 로그인해서 사용하고자 할 때 쓰는 명령어
+> ** --config : 뒤에있는 파일로 mongodb를 기동을 해라
+> ** volume mount : 기존 mongodb가 삭제되어도 데이터는 db에 저장되어 다른 mongodb 가 생성되면
+> 				  그 db가 새 mongodb로 가는 것. 데이터의 손실을 막기 위함
+> ** name 을 사용하는 것이 직접적이기 때문에 _id 보다는 name 을 더 자주 사용한다.
+
+우선 처음엔
+$ docker run --name mongodb_server -d -p 16010:27017 mongo -auth 로 실행해본다.
+
+docker ps
+
+$ docker exec -it mongodb_server bash
+	root@XXXXXXXXX $ mongo
+  
+PS C:\Users\HPE\work\docker\day03> docker exec -it mongodb_server bash
+root@0ae6ddacf291:/#
+
+mongo > use admin
+mongo > db.createUser({user:"admin",pwd:"admin", roles:[{role:"userAdminAnyDatabase",db:"admin"}]})
+
+
+$ mongo -u "admin" -p "admin" -authenticationDatabase "admin"
+mongo > use testdb db.createUser({user:"tester",pwd:"1234",roles:["dbAdmin","readWrite"]})
+
+<replicaset 재설정>
+mongo > cfg = rs.conf()
+mongo > rs.members[0].host = "172.17.0.3:27017"
+mongo > rs.reconfig(cfg)
+
+<mongodb_server_1,2,3 만들기>
+PS C:\Users\HPE\work\docker\day03> docker run --name mongodb_server_1 \
+-d -p 16010:27017 mongo --replSet myapp
+4a31a42c6eed309997defbe68e0085200c844588f1cdd29b53c2cbc2298d9146
+PS C:\Users\HPE\work\docker\day03> docker run --name mongodb_server_2 \
+-d -p 26010:27017 mongo --replSet myapp
+65d1c16840319f97d0346441c74a19a32f3680bc666a4074c3c059e18cfc5a07
+PS C:\Users\HPE\work\docker\day03> docker run --name mongodb_server_3 \
+-d -p 36010:27017 mongo --replSet myapp
+637f61261093fce927eabf091851e20f4c5132ceedf612c85d426beea777c085
+
+<mongodb 서버실행>
+PS C:\Users\HPE\work\docker\day03> docker exec -it mongodb_server_1 bash
+root@4a31a42c6eed:/#
+PS C:\Users\HPE> docker exec -it mongodb_server_2 bash
+root@65d1c1684031:/#
+PS C:\Users\HPE> docker exec -it mongodb_server_3 bash
+root@637f61261093:/#
+
+<IP 주소 확인>
+PS C:\Users\HPE> docker inspect 65d1c1684031
+<거의 맨 끝쪽에 위치하고있음.>
+docker_server_1 : "IPAddress": "172.17.0.3",
+docker_server_2 : "IPAddress": "172.17.0.4",
+docker_server_3 : "IPAddress": "172.17.0.5",
+
+<rs.initiate - mongodb_server_1>
+> rs.initiate()
+{
+        "info2" : "no configuration specified. Using a default configuration for the set",
+        "me" : "4a31a42c6eed:27017",
+        "ok" : 1,
+        "$clusterTime" : {
+                "clusterTime" : Timestamp(1577930504, 1),
+                "signature" : {
+                        "hash" : BinData(0,"AAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+                        "keyId" : NumberLong(0)
+                }
+        },
+        "operationTime" : Timestamp(1577930504, 1)
+}
+
+<server 2, 3 추가>
+myapp:PRIMARY> rs.add("172.17.0.4:27017")
+{
+        "ok" : 1,
+        "$clusterTime" : {
+                "clusterTime" : Timestamp(1577930865, 1),
+                "signature" : {
+                        "hash" : BinData(0,"AAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+                        "keyId" : NumberLong(0)
+                }
+        },
+        "operationTime" : Timestamp(1577930865, 1)
+}
+myapp:PRIMARY> rs.add("172.17.0.5:27017") 도 같은 작업.
+
+<host 들어와있는지 확인>
+myapp:PRIMARY> db.isMaster()
+
+<secondary 연결>
+> rs.slaveOk()
+> show dbs;
+local  0.000GB
+
+myapp:PRIMARY> cfg.members[0].host = 172.17.0.3:27017"
+myapp:PRIMARY> rs.reconfig(cfg)
+
+<mongodb.primary>
+myapp:PRIMARY> show databases;
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+myapp:PRIMARY> use bookstore;
+switched to db bookstore
+myapp:PRIMARY> db.books.save({title:"Docker1"});
+WriteResult({ "nInserted" : 1 })
+myapp:PRIMARY> db.books.save({title:"Java2"});
+WriteResult({ "nInserted" : 1 })
+myapp:PRIMARY> db.books.find();
+{ "_id" : ObjectId("5e0d55d8dcf9b2040f586213"), "title" : "Docker1" }
+{ "_id" : ObjectId("5e0d55dedcf9b2040f586214"), "title" : "Java2" }
+
+
+
+
